@@ -1,7 +1,6 @@
 build-lists: true
 slidenumbers: true
 autoscale: false
-slide-transition: move(left)
 
 <!-- https://idiomaticsoft.com/post/2024-01-02-effect-systems/ -->
 
@@ -9,20 +8,16 @@ slide-transition: move(left)
 ## Adam Hearn
 
 ---
-# Who am I?
-- ???
-
----
 
 # What is Kyo?
 
 - Kyo is a powerful toolkit for developing with Scala
 - Built from a series of standalone modules:
-    - `kyo-data`: Low allocation, performant collections
+    - `kyo-data`: Low allocation, performant structures
     - `kyo-prelude`: Side-effect free *Algebraic effects*
-    - `kyo-core`: prelude + IO & Async
+    - `kyo-core`: Effects for IO, Async, & Concurrency
     - `kyo-scheduler`: high performance adaptive scheduler
-        - `kyo-scheduler-zio`: runs your ZIO app!
+      - `kyo-scheduler-zio`: run your ZIO App!
 
 ---
 # What are Algebraic Effects?
@@ -32,48 +27,59 @@ slide-transition: move(left)
 ---
 # What are ~~Algebraic~~ Effects?
 
-* Effects - single most overloaded term in FP
-* Effects are descriptions of what you want
+* Effects
+    * Descriptions of what you want
+    * Produce what you want *when run*
+    * Programs as values!
 * Effects are backed by suspension
     * Suspension defers a computation until later
-    * Separation of execution from definition enables
-        * Flexibility in execution (Retry, Delay, etc)
+    * Separation of execution from definition:
+        * Flexibility in execution (Retry, Delay, Interrupt)
         * Delayed implementation (Clock.live vs Clock.test)
 
----
-# What's an Effect System?
-
-* Structured framework to manage and reason about Effects
-* Separates the concern of 'what' from 'how'
-* Relies on suspension to defer evaluation
+^ Effects are probably the most overloaded term in FP
+^ Most people end up describing Side-Effects, not functional effects
 
 ---
+<!-- # What's an Effect System?
+
+* Framework for managing, composing, and using effects
+* Tools for concurrency, scheduling, and building with effects
+
+^ I like to think of Effect Systems as the 'brand' of effect you use
+
+--- -->
 # What are Algebraic Effects?
 <!-- TODO: Revisit this; simplify it -->
 
-* Key components:
-    * Effects: Operations that can be performed
-    * Handlers: Define how effects are interpreted
-* Allows for:
-    * Fine-grained control over effect handling
-    * Composability of different effects
-    * Separation of effect declaration and implementation
-* Differs from exceptions by allowing resumption of computation
+* Extensible & Composable Effects!
+  * Fine-grained control over effect handling
+  * Trivial combination of various abilities
+  * Separation of effect declaration and implementation
+    * User defined effects!
+* Handlers: Define how effects are interpreted
+
+<!-- Programming with superpowers -->
+
+^ Often you may see languages refer to specific Effects as Abilities
+^ Since most of Kyo doesn't do that, I won't but it's a useful mental model.
 
 ---
 
+
+---
 # Why use Algebraic Effects?
 
-
-^ TODO
+<!-- TODO! -->
 
 ---
 
 # Why use Kyo?
 
-- Kyo brings advanced algebraic effects to Scala
+- Includes flexible algebraic effects in *Scala*
 - Designed for simplicity and performance
-- Includes core effects, as well as a framework for custom effects
+- Core effect handling is not restricted to included effects
+  - User defined effects are 
 
 ---
 # Kyo Syntax
@@ -90,7 +96,40 @@ val _: String < IO = IO("Hello scala.io!")
 ---
 # IO: Side-Effect Suspension
 
+Kyo enables labeling side effects via `IO`:
 
+```scala
+object DB:
+  def run(query: SQL[Result]): Result < IO = ???
+
+object MyApp:
+  val _: Chunk[Person] < Any = IO.run(DB.run(sql"select * from person"))
+```
+
+- `IO` must be handled individually (`IO.run`)
+- The above expression is not fully evaluated and may be pending further suspensions.
+
+---
+# Abort: Short Circuit
+```scala
+object User:
+  case class User(email: String)
+  enum UserError:
+    case InvalidEmail
+    case AlreadyExists
+  
+  def from(email: String): User < Abort[UserError] =
+    if !email.contains('@') then Abort.fail(Invalid)
+    else User(names.head, names.tail)
+
+val x: Unit < IO =
+  Abort.run(from("adam@veak.co")).map:
+    case Result.Success(user) => Console.println(s"Success! $user")
+    case Result.Fail(Invalid)                    => Console.println(s"Bad email!")
+
+```
+
+^ Abort enables ZIO style short circuiting
 
 ---
 # Env: Dependency Injection
@@ -108,11 +147,6 @@ val program: Record < (Env[DB] & IO) =
 val config = Config("http://example.com")
 val result = program.provideEnv(config).eval
 ```
-
----
-# Abort: Short Circuit
-
-
 
 ---
 # Kyo: Effect Widening
