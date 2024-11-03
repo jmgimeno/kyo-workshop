@@ -14,7 +14,7 @@ autoscale: false
 - Kyo is a powerful toolkit for developing with Scala
 - Built from a series of standalone modules:
     - `kyo-data`: Low allocation, performant structures
-    - `kyo-prelude`: Side-effect free *Algebraic effects*
+    - `kyo-prelude`: Side-effect free **Algebraic effects**
     - `kyo-core`: Effects for IO, Async, & Concurrency
     - `kyo-scheduler`: high performance adaptive scheduler
       - `kyo-scheduler-zio`: run your ZIO App!
@@ -65,9 +65,6 @@ autoscale: false
 ^ Since most of Kyo doesn't do that, I won't but it's a useful mental model.
 
 ---
-
-
----
 # Why use Algebraic Effects?
 
 <!-- TODO! -->
@@ -76,7 +73,7 @@ autoscale: false
 
 # Why use Kyo?
 
-- Includes flexible algebraic effects in *Scala*
+- Includes flexible algebraic effects in **Scala**
 - Designed for simplicity and performance
 - Core effect handling is not restricted to included effects
   - User defined effects are 
