@@ -17,7 +17,7 @@ autoscale: false
     - `kyo-prelude`: Side-effect free **Algebraic effects**
     - `kyo-core`: Effects for IO, Async, & Concurrency
     - `kyo-scheduler`: high performance adaptive scheduler
-      - `kyo-scheduler-zio`: run your ZIO App!
+      - `kyo-scheduler-zio`: boost your ZIO App!
 
 ---
 # What are Algebraic Effects?
@@ -35,7 +35,7 @@ autoscale: false
     * Suspension defers a computation until later
     * Separation of execution from definition:
         * Flexibility in execution (Retry, Delay, Interrupt)
-        * Delayed implementation (Clock.live vs Clock.test)
+        * Delayed implementation (Clock.live vs Clock.withTimeControl)
 
 ^ Effects are probably the most overloaded term in FP
 ^ Most people end up describing Side-Effects, not functional effects
@@ -100,10 +100,13 @@ object DB:
   def run(query: SQL[Result]): Result < IO = ???
 
 object MyApp:
-  val _: Chunk[Person] < Any = IO.run(DB.run(sql"select * from person"))
+  val _: Chunk[Person] < Any = 
+    import AllowUnsafe.embrace.danger
+    IO.Unsafe.run(DB.run(sql"select * from person"))
 ```
 
-- `IO` must be handled individually (`IO.run`)
+- `IO` must be handled individually (`IO.Unit.run`)
+- Unsafe APIs require an `AllowUnsafe` evidence
 - The above expression is not fully evaluated and may be pending further suspensions.
 
 ---
@@ -131,6 +134,7 @@ val x: Unit < IO =
 ---
 # Env: Dependency Injection
 ```
+// TODO Fix code
 trait DB:
   def apply(id: Int): String < IO
 
