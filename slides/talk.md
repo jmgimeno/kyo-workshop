@@ -105,7 +105,7 @@ object MyApp:
     IO.Unsafe.run(DB.run(sql"select * from person"))
 ```
 
-- `IO` must be handled individually (`IO.Unit.run`)
+- `IO` must be handled individually (`IO.Unsafe.run`)
 - Unsafe APIs require an `AllowUnsafe` evidence
 - The above expression is not fully evaluated and may be pending further suspensions.
 
