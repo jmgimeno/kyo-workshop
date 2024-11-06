@@ -122,6 +122,7 @@ object `02_Async` extends KyoSpecDefault {
         *   - Delay for 50 milliseconds
         *   - Fail with "negative not allowed" if input is negative
         *   - Return input * 2 if positive
+        *   - Fork the computation with Async.run
         */
       def computation(i: Int): Fiber[String, Int] < IO =
         Async.run {
