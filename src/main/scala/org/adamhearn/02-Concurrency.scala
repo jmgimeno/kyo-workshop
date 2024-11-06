@@ -11,55 +11,214 @@ import java.io.IOException
 
 /** Async effect allows for the asynchronous execution of computations via a managed thread pool.
   *
-  * The core function, run, spawns a new "green thread," also known as a fiber, to handle the given
+  * The core function, run, forks a new "green thread," also known as a fiber, to handle the given
   * computation.
   */
 object `02_Async` extends KyoSpecDefault {
   def spec = suite("Async")(
-    suite("Fiber")(
-      test("fork") {
-        // TODO: show how to make a fiber directly
-        assertCompletes
-      },
-      test("join") {
-        // show how to `.get` on a fiber
-        // runs 'synchronously' for all maps
-        assertCompletes
-      },
-    ),
+    test("delay") {
+
+      /** Exercise: Async.delay
+        *
+        * Async.delay executes a computation after waiting for the specified duration. This is
+        * useful for testing timeouts and simulating long operations.
+        *
+        * Implement computation to:
+        *   - Take an Int input
+        *   - Delay for 50.millis
+        *   - Return the input multiplied by 2
+        */
+      def computation(i: Int): Int < Async =
+        Async.delay(50.millis)(i * 2)
+
+      computation(21).map(result => assertTrue(result == 42))
+    },
+    test("parallel") {
+
+      /** Exercise: Async.parallel
+        *
+        * Async.parallel executes computations in parallel and collects their results into a tuple.
+        * If any computation fails, the error is propagated and remaining computations are
+        * interrupted.
+        *
+        * Implement computation to:
+        *   - Take an Int input and return it doubled after a delay
+        *   - Fail with Abort if the input is negative
+        *   - Use a 100.millis delay
+        */
+      def computation(i: Int): Int < (Async & Abort[String]) =
+        Async.delay(100.millis) {
+          if i < 0 then Abort.fail("negative!")
+          else i * 2
+        }
+
+      val combined: (Int, Int, Int) < (Abort[String] & Async) =
+        Async.parallel(
+          computation(1),
+          computation(2),
+          computation(3),
+        )
+
+      Abort.run(combined).map(result => assertTrue(result == Success((2, 4, 6))))
+    },
+    test("race") {
+
+      /** Exercise: Async.race
+        *
+        * Async.race evaluates multiple computations concurrently and returns the first successful
+        * result. When one computation succeeds, all others are interrupted.
+        *
+        * Implement computation to:
+        *   - Delay proportionally to the input (50.millis * i)
+        *   - Fail with `Abort` if i is even
+        *   - Return i if odd
+        */
+      def computation(i: Int): Int < (Async & Abort[String]) =
+        Async.delay(50.millis * i) {
+          if i % 2 == 0 then Abort.fail(s"even number $i")
+          else i
+        }
+
+      val racing: Int < (Abort[String] & Async) =
+        Async.race(
+          computation(2), // Will fail
+          computation(3), // Will succeed but slower
+          computation(4), // Will fail
+        )
+
+      Abort.run(racing).map(result => assertTrue(result == Success(3)))
+    },
+    test("timeout") {
+
+      /** Exercise: Async.timeout
+        *
+        * Async.timeout interrupts a computation after a specified duration with a Timeout error.
+        * The error gets added to the Abort effect's error type.
+        *
+        * Create a computation that:
+        *   - Takes longer than the timeout (use Async.delay with 100.millis)
+        *   - Has a timeout of 50 milliseconds
+        *   - Should result in a Timeout error
+        */
+      val computation: Int < (Abort[Timeout] & Async) =
+        Async.timeout(50.millis)(
+          Async.delay(100.millis)(42)
+        )
+
+      Abort.run(computation).map(result => assertTrue(result.isFail))
+    },
     test("run") {
 
       /** Exercise: Async.run
         *
-        * TODO: talk about Async and how it's not a single effect TODO: talk about 'forking' with
-        * multiple pending effects `Async.run(_)
+        * Async.run forks a computation on a separate fiber, allowing for concurrent execution. The
+        * returned Fiber can be used to monitor or control the computation.
+        *
+        * Note: Fiber[E, A] is parameterized by error type E and success type A. The E type
+        * parameter corresponds to the error type in Abort[E] in the forked computation.
+        *
+        * Implement work to:
+        *   - Take an Int input
+        *   - Delay for 50 milliseconds
+        *   - Fail with "negative not allowed" if input is negative
+        *   - Return input * 2 if positive
+        *   - Fork the computation with Async.run
         */
-      assertCompletes
+      def computation(i: Int): Fiber[String, Int] < IO =
+        Async.run {
+          Async.delay(50.millis) {
+            if i < 0 then Abort.fail("negative not allowed")
+            else i * 2
+          }
+        }
+
+      // `fiber.get` retrieves the result, translating the `Fiber` error channel back to `Abort `
+      Abort
+        .run(computation(21).map(_.get))
+        .map(result => assertTrue(result == Success(42)))
     },
-    test("race") {
-      assertCompletes
-    },
-    test("timeout") {
-      assertCompletes
-    },
-    test("local") {
-      assertCompletes
+    test("interruption") {
+
+      /** Exercise: Fiber Interruption
+        *
+        * Running fibers can be interrupted, causing them to complete with a panic. Interruption is
+        * useful for cancelling long-running operations.
+        *
+        * Complete the program to:
+        *   - Start a fiber that delays for 100ms returning 42
+        *   - Interrupt it immediatelly
+        *   - Return the result via fiber.get
+        */
+      val computation: Int < Async =
+        for
+          fiber  <- Async.run(Async.delay(100.millis)(42))
+          _      <- fiber.interrupt
+          result <- fiber.get
+        yield result
+
+      Abort.run(computation).map(result => assertTrue(result.isPanic))
     },
   )
 }
+
 object `02_Structures` extends KyoSpecDefault {
   def spec =
     suite("structures")(
       suite("Atomic")(
         test("Ref") {
-          assertCompletes
+
+          /** Exercise: AtomicRef
+            *
+            * AtomicRef provides thread-safe mutable references. Operations on AtomicRef are atomic,
+            * preventing race conditions.
+            *
+            * Create a program that:
+            *   - Initializes an AtomicRef with 0
+            *   - Updates it by adding 1
+            *   - Returns the new value
+            */
+          val computation: Int < IO =
+            for
+              ref <- AtomicRef.init(0)
+              _   <- ref.update(_ + 1)
+              v   <- ref.get
+            yield v
+
+          computation.map(v => assertTrue(v == 1))
         }
       ),
       suite("Queue")(
         test("bounded") {
-          // TODO: show semantics of bounded queue
-          // Maybe fork a fiber and then use a separate fiber to take from the queue
-          assertCompletes
+
+          /** Exercise: Bounded Queue
+            *
+            * A bounded queue has a maximum capacity. Once full, offers will fail. This provides
+            * natural backpressure for producer-consumer scenarios.
+            *
+            * Create a program that demonstrates:
+            *   - Creating a queue with capacity 2
+            *   - Filling it to capacity
+            *   - Checking it's full
+            *   - Taking an element
+            *   - Verifying it's no longer full
+            */
+          val computation: (Boolean, Maybe[Int], Boolean) < (IO & Abort[Closed]) =
+            for
+              queue     <- Queue.init[Int](2)
+              _         <- queue.offer(1)
+              _         <- queue.offer(2)
+              full      <- queue.full
+              first     <- queue.poll
+              afterPoll <- queue.full
+            yield (full, first, afterPoll)
+
+          computation.map((full, first, afterPoll) =>
+            assertTrue(
+              full &&
+                first == Maybe(1) &&
+                !afterPoll
+            )
+          )
         }
       ),
     )
