@@ -7,6 +7,15 @@ autoscale: false
 # [fit] Introduction to Kyo
 ## Adam Hearn
 
+<!-- ---
+# Agenda
+
+- What is Kyo?
+- Algebraic Effects
+- Kyo
+  - Syntax + Effects
+  - Quirks + Features -->
+
 ---
 
 # What is Kyo?
@@ -91,88 +100,108 @@ val _: String < IO = IO("Hello scala.io!")
   * `File < (IO & Resource)`'
 
 ---
-# IO: Side-Effect Suspension
 
-Kyo enables labeling side effects via `IO`:
+#[fit] Effects!
+
+---
+### IO: Side-Effect Suspension
 
 ```scala
 object DB:
-  def run(query: SQL[Result]): Result < IO = ???
+  def query[A](sql: SQL[A]): Chunk[A] < IO = ???
 
-object MyApp:
-  val _: Chunk[Person] < Any = 
+object Query:
+  val _: Chunk[Person] < Any =
     import AllowUnsafe.embrace.danger
-    IO.Unsafe.run(DB.run(sql"select * from person"))
+    IO.Unsafe.run(DB.query(sql"select * from person limit 5"))
 ```
 
-- `IO` must be handled individually (`IO.Unsafe.run`)
-- Unsafe APIs require an `AllowUnsafe` evidence
-- The above expression is not fully evaluated and may be pending further suspensions.
+- `IO` are handled individually (`IO.Unsafe.run`)
+  - Unsafe APIs require an `AllowUnsafe` evidence
+
+^ The above expression is not fully evaluated and may be pending further suspensions.
+^ You might note the `< Any` remaining.
+  ^ These are any pending suspensions which are not yet handled or labeled.
+  ^ Suspensions can be introduced internally by Kyo, or usages of APIs which introduce suspensions, eg Local.
 
 ---
-# Abort: Short Circuit
+## Abort: Short Circuit
 ```scala
-object User:
-  case class User(email: String)
+case class User(email: String)
+object User extends KyoApp:
+  import UserError._
   enum UserError:
     case InvalidEmail
     case AlreadyExists
-  
+
   def from(email: String): User < Abort[UserError] =
-    if !email.contains('@') then Abort.fail(Invalid)
-    else User(names.head, names.tail)
+    if !email.contains('@') then Abort.fail(InvalidEmail)
+    else User(email)
 
-val x: Unit < IO =
-  Abort.run(from("adam@veak.co")).map:
-    case Result.Success(user) => Console.println(s"Success! $user")
-    case Result.Fail(Invalid)                    => Console.println(s"Bad email!")
-
+  val x: Unit < IO =
+    Abort
+      .run(from("adam@veak.co"))
+      .map:
+        case Result.Success(user)      => Console.println(s"Success! $user")
+        case Result.Fail(InvalidEmail) => Console.println("Bad email!")
 ```
 
 ^ Abort enables ZIO style short circuiting
 
 ---
-# Env: Dependency Injection
-```
-// TODO Fix code
-trait DB:
-  def apply(id: Int): String < IO
+## Env: Dependency Injection
 
-val program: Record < (Env[DB] & IO) = 
-  for
-    config <- Env.get[DB]
-    result <- IO(s"Connecting to ${config.url}")
-  yield result
+```scala
+abstract class Weather:
+  def record(coordinates: Coordinates): Reading < IO
 
-// Usage
-val config = Config("http://example.com")
-val result = program.provideEnv(config).eval
+object Weather:
+  val live: Weather < (Env[Drone] & Env[Sensor]) =
+    for
+      drone <- Env.get[Drone]
+      sensor <- Env.get[Sensor]
+    yield new Weather:
+      def record(coordinates: Coordinates): Reading < IO =
+        drone.fly(coordinates).andThen(sensor.read)
 ```
 
 ---
-# Kyo: Effect Widening
+## Kyo: Effect Widening
 
 ```scala
-val a: Int < IO = IO(42)
-val b: Int < (IO & Abort[Exception]) = a
-val c: Int < (IO & Async & Abort[Exception]) = b
+val a: String < IO = "Hello"
+val b: String < (IO & Abort[Exception]) = a
+val c: String < (IO & Abort[Exception] & Resource) = b
 ```
 
 - Computations can be widened to include more effects
 - Allows for flexible and composable code
 - Plain values can be widened to Kyo computation
-  - Values aren't suspended & don't allocate [^1]
+  - Widened values are not suspended
+  - Widened values do not allocate [^1]
 
 [^1]: Primitives widened to Kyo will box as Scala 3 does not support proper specialization
----
-# Kyo: Branching
-
-
-^ TODO
 
 ---
+# Kyo: Unnested encoding
 
-# Kyo: Flattening
+```scala
+object Write:
+  def apply[S](v: String < S): Unit < (S & IO) =
+    v.map(Buffer.write(_, "output.txt"))
+
+object MyApp:
+    val value: Unit < IO = Write("Hello, World!")
+    val effect: Unit < (IO & Abort[IOException]) = Write(Console.readLine)
+    val mapped: Unit < (IO & Abort[IOException]) = value.map(_ => effect)
+```
+
+* Widening pure values as effects enables fluent composition.
+  * Functions can be defined to accept effects, and values can be passed in.
+* `F.pure`/`ZIO.succeed` no more!
+
+---
+# Kyo: Unnested encoding
 
 - Effects can be easily combined using `map` and `flatMap`
 - Resulting type includes all unique pending effects
