@@ -27,6 +27,7 @@ autoscale: false
     - `kyo-core`: Effects for IO, Async, & Concurrency
     - `kyo-scheduler`: high performance adaptive scheduler
       - `kyo-scheduler-zio`: boost your ZIO App!
+    - `kyo-zio` & `kyo-cats` (& soon `kyo-monix`)
 
 ---
 # What are Algebraic Effects?
@@ -76,16 +77,13 @@ autoscale: false
 ---
 # Why use Algebraic Effects?
 
-<!-- TODO! -->
-
 ---
 
 # Why use Kyo?
 
 - Includes flexible algebraic effects in **Scala**
 - Designed for simplicity and performance
-- Core effect handling is not restricted to included effects
-  - User defined effects are 
+- Effect handling is not restricted to core effects
 
 ---
 # Kyo Syntax
@@ -203,7 +201,11 @@ object MyApp:
 ---
 # Kyo: Unnested encoding
 
-- Effects can be easily combined using `map` and `flatMap`
+```scala
+inline def flatMap[B, S2](inline f: Safepoint ?=> A => B < S2): B < (S & S2) =
+    map(v => f(v))
+```
+- Effects can be easily combined using `map`... no need for `flatMap`
 - Resulting type includes all unique pending effects
 
 ---
@@ -220,11 +222,6 @@ val c: Result[Exception, Int] = b.eval
 * Order of handling can affect the result type and value
 
 ---
-# KyoApp
-
-
----
-
 
 # Direct Syntax in Kyo
 
@@ -241,6 +238,40 @@ val a: String < (Abort[Exception] & IO) =
 
 ---
 
+## KyoApp: Running your App
+
+```scala
+object Main extends KyoApp:
+  def app = defer:
+    val port = await(System.property[Int]("PORT", 80))
+    val options = NettyKyoServerOptions
+      .default(enableLogging = false)
+      .forkExecution(false)
+    val config =
+      NettyConfig.default.withSocketKeepAlive
+        .copy(lingerTimeout = None)
+
+    val server =
+      NettyKyoServer(options, config)
+        .host("0.0.0.0")
+        .port(port)
+    await(Console.println(s"Starting... 0.0.0.0:$port"))
+    await(Routes.run(server):
+      Routes.add(
+        _.get
+          .in("echo" / path[String])
+          .out(stringBody)
+      )(input => input)
+    )
+
+  run(app)
+```
+
+^ KyoApp is a simple way to run your application.
+^ It will automatically handle all effects and suspend any remaining effects.
+
+---
+
 # Conclusion
 
 - Kyo provides a powerful yet simple way to work with algebraic effects
@@ -251,7 +282,7 @@ val a: String < (Abort[Exception] & IO) =
 
 # Questions?
 
-
+<!-- 
 - !all effects suspend!
 - Suspension + Handling
 - ZIO each map/flatMap introduces suspension/resumption
@@ -262,12 +293,12 @@ https://koka-lang.github.io/koka/doc/index.html
 
 Kyo supports a wide set of audience
 - Library Authors
-- Novices
+- Novices -->
 
 
 
 ---
-
+<!-- 
 Wrap up:
 
 - Effects
@@ -278,4 +309,4 @@ Wrap up:
   - Running your App
 
 TODO: Kyo Data
-kyo-scheduler
+kyo-scheduler -->
