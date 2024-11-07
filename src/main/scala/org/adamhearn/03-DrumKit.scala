@@ -6,37 +6,34 @@ import org.jline.terminal.TerminalBuilder
 
 object DrumKit extends KyoApp:
 
-  case class Sample(schedule: Schedule, notes: Chunk[Char])
+  case class Note(time: Duration, char: Char)
 
-  def record: Sample < IO =
-    Loop(Schedule.done, Chunk.empty[Char]) { (schedule, notes) =>
+  def record: Seq[Note] < IO =
+    Loop(Chunk.empty[Note]) { notes =>
       for {
-        stopwatch <- Clock.stopwatch
-        input     <- JLine.readChar
-        delay     <- stopwatch.elapsed
-        _         <- Async.run(Player.play(input))
+        input <- JLine.readChar
+        time  <- Clock.nowMonotonic
+        _     <- Async.run(Player.play(input))
       } yield
-        val newSchedule =
-          if notes.isEmpty then Schedule.immediate
-          else schedule.andThen(Schedule.delay(delay))
-        if input == '\r' then Loop.done(Sample(newSchedule, notes))
-        else Loop.continue(newSchedule, notes.append(input))
+        if input == '\r' then Loop.done(notes)
+        else Loop.continue(notes.append(Note(time, input)))
     }
 
-  def play(sample: Sample): Unit < Async =
-    Loop(sample.schedule, sample.notes) { (schedule, notes) =>
+  def play(notes: Seq[Note]): Unit < Async =
+    Loop(Duration.Zero, notes.toSeq) { (prevTime, notes) =>
       JLine.tryReadChar.map {
         case Present('\r') => Loop.done(())
         case _ =>
-          schedule.next match
-            case Absent =>
+          notes match
+            case Note(time, char) +: tail =>
+              val delay =
+                if prevTime == Duration.Zero then 0.nanos
+                else time - prevTime
+              Async.delay(delay) {
+                Player.play(char).andThen(Loop.continue(time, tail))
+              }
+            case _ =>
               Loop.done(())
-            case Present((delay, newSchedule)) =>
-              if notes.isEmpty then Loop.done(())
-              else
-                Async
-                  .delay(delay)(Player.play(notes.head))
-                  .andThen(Loop.continue(newSchedule, notes.drop(1)))
       }
     }
 
