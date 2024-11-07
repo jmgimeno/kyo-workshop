@@ -38,13 +38,13 @@ autoscale: false
 
 * Effects
     * Descriptions of what you want
-    * Produce what you want *when run*
+    * Produce what you want **when run**
     * Programs as values!
-* Effects are backed by suspension
+* Effects are backed by **suspension**
     * Suspension defers a computation until later
     * Separation of execution from definition:
         * Flexibility in execution (Retry, Delay, Interrupt)
-        * Delayed implementation (Clock.live vs Clock.withTimeControl)
+        * Delayed implementation (`Clock.live` vs `Clock.withTimeControl`)
 
 ^ Effects are probably the most overloaded term in FP
 ^ Most people end up describing Side-Effects, not functional effects

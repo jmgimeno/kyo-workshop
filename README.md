@@ -1,8 +1,11 @@
-## sbt project compiled with Scala 3
+# Scala.io 2024: Kyo Workshop
 
-### Usage
+## Setup:
+1. Please ensure you have Scala 3.5.0+ installed
+2. Clone the repo and cd into the directory
+3. Open with your choice of IDE, but ideally something with Metals support
 
-This is a normal sbt project. You can compile code with `sbt compile`, run it with `sbt run`, and `sbt console` will start a Scala 3 REPL.
-
-For more information on the sbt-dotty plugin, see the
-[scala3-example-project](https://github.com/scala/scala3-example-project/blob/main/README.md).
+```bash
+git clone git@github.com:hearnadam/kyo-workshop.git &&
+cd kyo-workshop
+```
