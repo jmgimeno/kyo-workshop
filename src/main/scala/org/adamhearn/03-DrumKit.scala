@@ -8,34 +8,9 @@ object DrumKit extends KyoApp:
 
   case class Note(time: Duration, char: Char)
 
-  def record: Seq[Note] < IO =
-    Loop(Chunk.empty[Note]) { notes =>
-      for {
-        input <- JLine.readChar
-        time  <- Clock.nowMonotonic
-        _     <- Async.run(Player.play(input))
-      } yield
-        if input == '\r' then Loop.done(notes)
-        else Loop.continue(notes.append(Note(time, input)))
-    }
+  def record: Seq[Note] < IO = ???
 
-  def play(notes: Seq[Note]): Unit < Async =
-    Loop(Duration.Zero, notes.toSeq) { (prevTime, notes) =>
-      JLine.tryReadChar.map {
-        case Present('\r') => Loop.done(())
-        case _ =>
-          notes match
-            case Note(time, char) +: tail =>
-              val delay =
-                if prevTime == Duration.Zero then 0.nanos
-                else time - prevTime
-              Async.delay(delay) {
-                Player.play(char).andThen(Loop.continue(time, tail))
-              }
-            case _ =>
-              Loop.done(())
-      }
-    }
+  def play(notes: Seq[Note]): Unit < Async = ???
 
   run {
     Loop.forever(record.map(play))

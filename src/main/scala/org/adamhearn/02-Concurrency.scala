@@ -4,10 +4,8 @@ import kyo.*
 import kyo.Result.*
 import kyo.test.KyoSpecDefault
 import zio.test.assertTrue
-import zio.test.assertCompletes
 import zio.test.TestAspect.ignore
 import zio.test.TestResult
-import java.io.IOException
 
 /** Async effect allows for the asynchronous execution of computations via a managed thread pool.
   *

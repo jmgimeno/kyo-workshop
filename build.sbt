@@ -19,8 +19,10 @@ lazy val root = project
       "-language:implicitConversions",
       "-Wvalue-discard",
       "-Wnonunit-statement",
+      "-Wconf:msg=(discarded.*value|pure.*statement):error",
       "-Xmax-inlines:100",
       "-release:21",
+      "-Wunused:imports",
     ),
     libraryDependencies ++= Seq(
       "io.getkyo"     %% "kyo-core"        % kyoVersion,

@@ -8,7 +8,6 @@ import kyo.test.KyoSpecDefault
 import zio.test.assertTrue
 import zio.test.Spec
 import zio.test.TestAspect.ignore
-import scala.reflect.ClassTag
 
 /** kyo-data provides optimized collections for common data types.
   *
@@ -60,7 +59,7 @@ object `00_Result` extends KyoSpecDefault:
         case class InvalidRequest(message: String) extends Throwable
         case class SQLException()                  extends Throwable
 
-        def businessLogic(request: String): Int =
+        def impureLogic(request: String): Int =
           if request == "bad" then throw InvalidRequest(request)
           else throw SQLException()
 
@@ -89,7 +88,37 @@ object `00_Result` extends KyoSpecDefault:
         assertTrue(panic.resurrect.isPanic) &&
         assertTrue(success.resurrect.isSuccess)
       } @@ ignore,
-      test("TODO")(assertTrue(true)) @@ ignore,
+      test("error handling") {
+
+        /** Exercise 3: Result Error Handling
+          *
+          * Goal: Demonstrate Result's ability to handle multiple error types
+          */
+        enum ValidationError:
+          case EmptyInput
+          case InvalidFormat
+
+        enum ProcessingError:
+          case CreditCardDecline
+          case Mismatch(input: String, expected: String)
+
+        def validate(input: String): Result[ValidationError, Int] = ???
+
+        // If the user ID is `42`, return "Approved"
+        // If the user ID is `1`, return "Decline transaction"
+        // Otherwise, return a Mismatch error
+        def charge(id: Int): Result[ProcessingError, String] = ???
+
+        def process(input: String): Result[ValidationError | ProcessingError, String] =
+          validate(input).flatMap(charge)
+
+        // convert the result to a string
+        def handle(result: Result[ValidationError | ProcessingError, String]): String = ???
+
+        assertTrue(handle(process("42")) == "Approved") &&
+        assertTrue(handle(process("1")) == "Transaction Declined") &&
+        assertTrue(handle(process("abc")) == "ID Mismatch: abc <> 42")
+      } @@ ignore,
     )
 
 object `00_Chunk` extends KyoSpecDefault:
@@ -174,7 +203,7 @@ object `00_TypeMap` extends KyoSpecDefault:
           *
           * First prune to just `Redis`. Then prune to just `DBConnection`.
           */
-        lazy val original = TypeMap.empty
+        val original = TypeMap.empty
           .add(Postgres())
           .add(Redis())
           .add(Mongo())
