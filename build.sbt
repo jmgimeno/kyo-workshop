@@ -30,6 +30,7 @@ lazy val root = project
       "io.getkyo"     %% "kyo-tapir"       % kyoVersion,
       "io.getkyo"     %% "kyo-zio"         % kyoVersion,
       "io.getkyo"     %% "kyo-test"        % kyoVersion,
+      "org.jline"      % "jline"           % "3.24.1",
       "ch.qos.logback" % "logback-classic" % "1.5.3",
     ),
     run / fork        := true,
