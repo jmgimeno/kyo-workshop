@@ -167,5 +167,23 @@ object `01_Effects` extends KyoSpecDefault {
           assertTrue(o.isSuccess) &&
           assertTrue(t.isFail)
       } @@ ignore,
+      test("Emit") {
+
+        /** Exercise: Emit
+          *
+          * Emit is an effect that is used to accumulate values. It's useful to maintain a record of
+          * the computation you create.
+          */
+        object Sensor:
+          def record(): Unit < (IO & Emit[Double]) = ???
+
+        def loop(n: Int): Double < (IO & Emit[Double]) = ???
+
+        Emit
+          .run(loop(10))
+          .map:
+            case (chunk, _) =>
+              assertTrue(chunk == Chunk(20.0, 18.0, 16.0, 14.0, 12.0, 10.0, 8.0, 6.0, 4.0, 2.0))
+      } @@ ignore,
     )
 }

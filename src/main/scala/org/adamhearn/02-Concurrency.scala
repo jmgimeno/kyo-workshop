@@ -144,7 +144,7 @@ object `02_Structures` extends KyoSpecDefault {
             *   - Updates it by adding 1
             *   - Returns the new value
             */
-          lval computation: Int < IO = ???
+          lazy val computation: Int < IO = ???
 
           computation.map(v => assertTrue(v == 1))
         } @@ ignore
