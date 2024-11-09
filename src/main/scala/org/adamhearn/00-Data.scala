@@ -85,7 +85,7 @@ object `00_Result` extends KyoSpecDefault:
         val success = Result.success(42)
 
         assertTrue(fail.resurrect.isFail) &&
-        assertTrue(panic.resurrect.isPanic) &&
+        assertTrue(panic.resurrect.isFail) &&
         assertTrue(success.resurrect.isSuccess)
       } @@ ignore,
       test("error handling") {
@@ -94,19 +94,21 @@ object `00_Result` extends KyoSpecDefault:
           *
           * Goal: Demonstrate Result's ability to handle multiple error types
           */
+        import ValidationError.*
         enum ValidationError:
           case EmptyInput
           case InvalidFormat
 
+        import ValidationError.*
         enum ProcessingError:
           case CreditCardDecline
           case Mismatch(input: String, expected: String)
 
         def validate(input: String): Result[ValidationError, Int] = ???
 
-        // If the user ID is `42`, return "Approved"
-        // If the user ID is `1`, return "Decline transaction"
-        // Otherwise, return a Mismatch error
+        // If the user ID is `42`, succeed with "Approved"
+        // If the user ID is `1`, fail with CreditCardDecline
+        // Otherwise, fail with a Mismatch error
         def charge(id: Int): Result[ProcessingError, String] = ???
 
         def process(input: String): Result[ValidationError | ProcessingError, String] =
@@ -117,7 +119,7 @@ object `00_Result` extends KyoSpecDefault:
 
         assertTrue(handle(process("42")) == "Approved") &&
         assertTrue(handle(process("1")) == "Transaction Declined") &&
-        assertTrue(handle(process("abc")) == "ID Mismatch: abc <> 42")
+        assertTrue(handle(process("-1")) == "Mismatch: -1 <> 42")
       } @@ ignore,
     )
 
