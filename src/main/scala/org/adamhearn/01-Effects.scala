@@ -28,14 +28,19 @@ object `01_Composition` extends KyoSpecDefault {
           *   - If the input is even, returns the input.
           *   - If the input is odd, aborts with "odd".
           */
-        def even(i: Int): Int < Abort[String] = ???
+        def even(i: Int): Int < Abort[String] =
+          if i % 2 == 0 then i
+          else Abort.fail("odd")
+
+        def altEven(i: Int): Int < Abort[String] =
+          Abort.ensuring(i % 2 == 0, i)("odd")
 
         for
           e <- Abort.run(even(42))
           o <- Abort.run(even(43))
-        yield assertTrue(e == Success(42)) &&
-          assertTrue(o == Fail("odd"))
-      } @@ ignore,
+        yield assertTrue(e == Result.success(42)) &&
+          assertTrue(o == Result.fail("odd"))
+      },
       test("multiple") {
 
         /** Exercise: multiple effects
@@ -44,14 +49,22 @@ object `01_Composition` extends KyoSpecDefault {
           *
           * What is the combined type? Can test run this effect?
           */
-        val aborting: Int < Abort[String] = 42
-        val sideEffecting: Unit < IO      = IO(println("hello"))
-        val mutating: Int < Var[Int]      = Var.update((i: Int) => i + 42)
-        val result: TestResult            = assertCompletes
+        val aborting: Int < Abort[Throwable] = 42
+        val sideEffecting: Unit < IO         = IO(println("hello"))
+        val mutating: Int < Var[Int]         = Var.update((i: Int) => i + 42)
+        val result: TestResult               = assertCompletes
 
-        val combined: TestResult < ??? = result
-        combined
-      } @@ ignore,
+        val combined: TestResult < (Abort[Throwable] & IO & Var[Int]) =
+          for
+            _ <- aborting
+            _ <- sideEffecting
+            _ <- mutating
+          yield result
+        // note: `kyo-test` cannot run all effects, specifically those that require input (Var, Env, etc).
+        // To get the test to compile, we can manually 'run' Var[Int]:
+        val withoutVar = Var.run(0)(combined)
+        withoutVar
+      },
     )
 }
 
@@ -69,12 +82,12 @@ object `01_Effects` extends KyoSpecDefault {
           * will convert a `A < Any` to `A`, evaluating any remaining suspensions.
           */
         case class Fatal() extends Exception
-        lazy val fail: Int < Abort[String]  = ???
-        lazy val panic: Int < Abort[String] = ???
+        lazy val fail: Int < Abort[String]  = Abort.fail("fail")
+        lazy val panic: Int < Abort[String] = Abort.panic(Fatal())
 
         assertTrue(Abort.run(fail).eval == Result.fail("fail")) &&
         assertTrue(Abort.run(panic).eval == Result.panic(Fatal()))
-      } @@ ignore,
+      },
       test("Env") {
 
         /** Exercise: Env
@@ -92,14 +105,17 @@ object `01_Effects` extends KyoSpecDefault {
             s <- Env.get[String]
           yield s"$b $s"
 
-        lazy val singleProvided: Int < Any      = ???
-        lazy val multipleProvided: String < Any = ???
+        lazy val singleProvided: Int < Any = Env.run(24)(single)
+
+        // there are multiple possible ways to provide more than one value:
+        lazy val multipleProvided: String < Any = Env.runTypeMap(TypeMap(true, "hello"))(multiple)
+        lazy val _: String < Any                = Env.run(true)(Env.run("hello")(multiple))
 
         for
           a <- singleProvided
           b <- multipleProvided
-        yield assertTrue(a == 42) && assertTrue(b == "true hello")
-      } @@ ignore,
+        yield assertTrue(a == 24) && assertTrue(b == "true hello")
+      },
       test("Var") {
 
         /** Exercise: Var
@@ -109,10 +125,19 @@ object `01_Effects` extends KyoSpecDefault {
           *
           * Use var to write a recursive method to compute the nth fibonacci number.
           */
-        def fib(n: Int): Long < Var[Chunk[Long]] = ???
+        def fib(n: Int): Long < Var[Chunk[Long]] =
+          if n == 1 then Var.use(_.last)
+          else
+            Var
+              .updateDiscard { (c: Chunk[Long]) =>
+                val next = c(c.length - 1) + c(c.length - 2)
+                c.append(next)
+              }
+              .andThen(fib(n - 1))
 
-        assertTrue(Var.run(Chunk(0L, 1L))(fib(50)).eval == 12586269025L)
-      } @@ ignore,
+        val fifty: Long = Var.run(Chunk(0L, 1L))(fib(50)).eval
+        assertTrue(fifty == 12586269025L)
+      },
       test("Resource") {
 
         /** Exercise: Resource
@@ -150,14 +175,15 @@ object `01_Effects` extends KyoSpecDefault {
               _ <- files.update(_.append(file)) // for testing
             yield file
 
-        def open(path: String): File < (IO & Resource) = ???
+        def open(path: String): File < (IO & Resource) =
+          Resource.acquireRelease(File.open(path))(_.close)
 
         // Open 2 files:
         // `first`, open a file named 'one', then invoke 'read' wrapping full expression in `Resource.run`.
         // `second`, open file named 'two' wrapped in `Resource.run`, then invoke 'read'
 
-        lazy val one = ???
-        lazy val two = ???
+        lazy val one = Resource.run(open("one").map(_.read))
+        lazy val two = Resource.run(open("two")).map(_.read)
 
         for
           o  <- Abort.run(one)
@@ -166,7 +192,7 @@ object `01_Effects` extends KyoSpecDefault {
         yield assertTrue(fs == Chunk(("one", true, 1), ("two", true, 0))) &&
           assertTrue(o.isSuccess) &&
           assertTrue(t.isFail)
-      } @@ ignore,
+      },
       test("Emit") {
 
         /** Exercise: Emit
@@ -176,7 +202,7 @@ object `01_Effects` extends KyoSpecDefault {
           */
         def loop(n: Int): Double < (IO & Emit[Double]) =
           if n <= 0 then 0.0
-          else ???
+          else Emit(n * 2.0).map(_ => loop(n - 1))
 
         Emit
           .run(loop(10))

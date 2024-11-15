@@ -20,7 +20,6 @@ lazy val root = project
       "-Wvalue-discard",
       "-Wnonunit-statement",
       "-Wconf:msg=(discarded.*value|pure.*statement):error",
-      "-Xmax-inlines:100",
     ),
     libraryDependencies ++= Seq(
       "io.getkyo"     %% "kyo-core"        % kyoVersion,
