@@ -9,20 +9,21 @@ import zio.test.TestAspect.ignore
 import zio.test.TestResult
 import java.io.IOException
 
-/** kyo-prelude & kyo-core contain many useful effects.
+/** kyo-prelude & kyo-core contain Algebraic/Functional Effects.
   *
-  * These exercises are intented to give a strong intuition about effects. They are not intended to
-  * be comprehensive in using/combining all effects.
+  * These exercises are intented to give a strong intuition about effects. Since effects can be
+  * implemented outside the core library (in your codebase), a comprehensive description of all
+  * effects is not possible. For that reason, this section is focused on intuition and examples.
   */
 object `01_Composition` extends KyoSpecDefault {
   def spec =
-    suite("composition")(
+    suite("Composition")(
       test("branching") {
 
-        /** Exercise: branching
+        /** Exercise: Branching
           *
-          * Kyo enables effectful branching via implicit widening. Pure values can be widened to an
-          * effectful value.
+          * Kyo enables effectful branching via implicit widening. Pure values can be widened to Kyo
+          * Computations.
           *
           * Write a function `even`:
           *   - If the input is even, returns the input.
@@ -47,7 +48,7 @@ object `01_Composition` extends KyoSpecDefault {
           *
           * Try combining multiple effects in a `for`.
           *
-          * What is the combined type? Can test run this effect?
+          * What is the combined type? Can the test run this effect?
           */
         val aborting: Int < Abort[Throwable] = 42
         val sideEffecting: Unit < IO         = IO(println("hello"))
@@ -199,16 +200,19 @@ object `01_Effects` extends KyoSpecDefault {
           *
           * Emit is an effect that is used to accumulate values. It's useful to maintain a record of
           * the computation you create.
+          *
+          * Write a function to emit `n` numbers, doubling each number and looping until `n` is less
+          * than or equal to 0.
           */
-        def loop(n: Int): Double < (IO & Emit[Double]) =
-          if n <= 0 then 0.0
-          else Emit(n * 2.0).map(_ => loop(n - 1))
+        def emitN(n: Int): Int < (IO & Emit[Int]) =
+          if n <= 0 then 0
+          else Emit(n * 2).map(_ => emitN(n - 1))
 
         Emit
-          .run(loop(10))
+          .run(emitN(10))
           .map:
             case (chunk, _) =>
-              assertTrue(chunk == Chunk(20.0, 18.0, 16.0, 14.0, 12.0, 10.0, 8.0, 6.0, 4.0, 2.0))
+              assertTrue(chunk == Chunk(20, 18, 16, 14, 12, 10, 8, 6, 4, 2))
       },
     )
 }

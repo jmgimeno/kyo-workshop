@@ -22,7 +22,7 @@ object `00_Maybe` extends KyoSpecDefault:
     suite("Maybe[A]")(
       test("nested") {
 
-        /** Exercise 1: Deep Pattern Matching
+        /** Exercise: Deep Pattern Matching
           *
           * Goal: Extract a deeply nested value using pattern matching Learning: Nested `Maybe`
           * values allocate at maximum 1 object.
@@ -33,12 +33,15 @@ object `00_Maybe` extends KyoSpecDefault:
               case Present(Present(Present(maybe))) => maybe
               case _                                => Absent
 
-        assertTrue(Maybe(Maybe(Maybe(Maybe("real")))).superFlat == Maybe("real")) &&
-        assertTrue(Maybe(Maybe(Maybe(Absent))).superFlat == Absent)
+        val present = Maybe(Maybe(Maybe(Maybe("real"))))
+        val absent  = Maybe(Maybe(Maybe(Absent)))
+
+        assertTrue(present.superFlat == Present("real")) &&
+        assertTrue(absent.superFlat == Absent)
       },
       test("list") {
 
-        /** Exercise 2: List[Maybe[A]] -> Maybe[List[A]]
+        /** Exercise: List[Maybe[A]] -> Maybe[List[A]]
           *
           * Goal: Implement a conversion from List[Maybe[A]] to Maybe[List[A]] Rules:
           *   - If ANY element is Absent, return Absent
@@ -57,8 +60,13 @@ object `00_Maybe` extends KyoSpecDefault:
                 case Nil => Present(output.reverse)
             loop(list, Nil)
 
-        assertTrue(List(Present(1), Absent, Present(2)).sequence == Absent) &&
-        assertTrue(List(Present(1), Present(2)).sequence == Present(List(1, 2)))
+        val mixed   = List(Present(1), Absent, Present(2))
+        val present = List(1, 2, 3, 4, 5).map(Present(_))
+        val empty   = List.empty[Maybe[Int]]
+
+        assertTrue(mixed.sequence == Absent) &&
+        assertTrue(present.sequence == Present(List(1, 2, 3, 4, 5))) &&
+        assertTrue(empty.sequence == Present(Nil))
       },
     )
 
@@ -67,7 +75,7 @@ object `00_Result` extends KyoSpecDefault:
     suite("Result[E, A]")(
       test("catching") {
 
-        /** Exercise 1: Result.catching offers a typesafe way to handle exceptions.
+        /** Exercise: Result.catching offers a typesafe way to handle exceptions.
           *
           * It will catch all exceptions that are subtypes of the type parameter. If the exception
           * is not a subtype, it will be untracked (Panic).
@@ -84,8 +92,8 @@ object `00_Result` extends KyoSpecDefault:
         lazy val panic: Result[InvalidRequest, Int] =
           Result.catching[InvalidRequest](impureLogic("foo"))
 
-        assertTrue(fail.isFail) &&
-        assertTrue(panic.isPanic)
+        assertTrue(fail == Result.fail(InvalidRequest("bad"))) &&
+        assertTrue(panic == Result.panic(SQLException()))
       },
       test("panic vs fail") {
         case class TrackedError()
@@ -93,8 +101,10 @@ object `00_Result` extends KyoSpecDefault:
 
         /** Exercise 2: lift untracked errors to tracked errors
           *
-          * `Panic` is a `Result[Nothing, Nothing]`, but contains a Throwable. `Fail` is a
-          * `Result[E, Nothing]`, and contains an error `E`.
+          *   - `Fail` is a `Result[E, Nothing]`, and contains an error `E`.
+          *   - `Panic` is a `Result[Nothing, Nothing]`, but contains a Throwable.
+          *
+          * Implement `resurrect` to convert a `Panic` to a `Fail`.
           */
         extension [E, A](self: Result[E, A])
           def resurrect: Result[E | Throwable, A] =
@@ -102,9 +112,9 @@ object `00_Result` extends KyoSpecDefault:
               case Result.Panic(throwable) => Result.fail(throwable)
               case other                   => other
 
-        val fail    = Result.fail(TrackedError())
-        val panic   = Result.panic(UntrackedError())
-        val success = Result.success(42)
+        lazy val fail: Result[TrackedError, Nothing] = Result.fail(TrackedError())
+        lazy val panic: Result[Nothing, Nothing]     = Result.panic(UntrackedError())
+        lazy val success: Result[Nothing, Int]       = Result.success(42)
 
         assertTrue(fail.resurrect.isFail) &&
         assertTrue(panic.resurrect.isFail) &&
@@ -112,7 +122,7 @@ object `00_Result` extends KyoSpecDefault:
       },
       test("error handling") {
 
-        /** Exercise 3: Result Error Handling
+        /** Exercise: Handling Errors with Result
           *
           * Goal: Demonstrate Result's ability to handle multiple error types
           */
@@ -128,7 +138,10 @@ object `00_Result` extends KyoSpecDefault:
 
         def validate(input: String): Result[ValidationError, Int] =
           if input.isEmpty then Result.fail(EmptyInput)
-          else input.toIntOption.fold(Result.fail(InvalidFormat))(Result.success)
+          else
+            input.toIntOption match
+              case Some(id) => Result.success(id)
+              case None     => Result.fail(InvalidFormat)
 
         // If the user ID is `42`, succeed with "Approved"
         // If the user ID is `1`, fail with CreditCardDecline
@@ -142,7 +155,7 @@ object `00_Result` extends KyoSpecDefault:
         def process(input: String): Result[ValidationError | ProcessingError, String] =
           validate(input).flatMap(charge)
 
-        // convert the result to a string
+        // use pattern matching to convert the result to a string
         def handle(result: Result[ValidationError | ProcessingError, String]): String =
           result match
             case Result.Success(value)                  => value
@@ -161,7 +174,7 @@ object `00_Chunk` extends KyoSpecDefault:
     suite("Chunk[A]")(
       test("apply") {
 
-        /** Exercise 1: Chunk.apply
+        /** Exercise: Chunk.apply
           *
           * Chunks are a specialized version of Seq that optimizes for performance. You can use a
           * Chunk wherever you would use a Seq.
@@ -170,12 +183,13 @@ object `00_Chunk` extends KyoSpecDefault:
           */
         lazy val chunk: Chunk[Int] = Chunk(1, 2, 3, 4, 5)
         lazy val seq: Seq[Int]     = chunk
+
         assertTrue(chunk == Chunk(1, 2, 3, 4, 5)) &&
         assertTrue(chunk == seq)
       },
       test("from") {
 
-        /** Exercise 2: Chunk.from (Array vs Seq)
+        /** Exercise: Chunk.from (Array vs Seq)
           *
           * Chunk.from offers a safe way to convert an Array or Seq to a Chunk.
           *
@@ -186,7 +200,7 @@ object `00_Chunk` extends KyoSpecDefault:
         lazy val seq: Seq[Int]             = 0 to 100
         lazy val chunkSeq: Chunk[Int]      = Chunk.from(seq)
 
-        // Since `Chunk` extends `Seq`, we can trivially check equality:
+        // Since `Chunk` extends `Seq`, you can check equality with other Seq implementations
         assertTrue(chunkArray == array.toSeq) &&
         assertTrue(chunkSeq == seq)
       },
@@ -194,13 +208,15 @@ object `00_Chunk` extends KyoSpecDefault:
 
         /** Exercise 3: Chunk#flattenChunk
           *
-          * While Chunk does extends Seq, it provides a more efficient implementation for
-          * flattening. This method will only work for `Chunk[A]` where `A` is a subtype of
-          * `Chunk[_]`.
+          *   - While Chunk does extends Seq, it sometimes offers more efficient implementations
+          *   - `flattenChunk` is one such method.
+          *   - This method will only work for `Chunk[A]` where `A` is a subtype of `Chunk[_]`.
           */
         lazy val chunk: Chunk[Chunk[Int]] = Chunk(Chunk(1, 2), Chunk(3, 4), Chunk(5, 6))
         lazy val flattened: Chunk[Int]    = chunk.flattenChunk
-        assertTrue(flattened == chunk.flatten)
+
+        assertTrue(flattened == chunk.flatten) && // flatten & flattenChunk produce the same result
+        assertTrue(flattened == Chunk(1, 2, 3, 4, 5, 6))
       },
     )
 object `00_TypeMap` extends KyoSpecDefault:
@@ -220,7 +236,7 @@ object `00_TypeMap` extends KyoSpecDefault:
     suite("TypeMap[A]")(
       test("add/get") {
 
-        /** Exercise 1: Create a TypeMap with a Postgres connection.
+        /** Exercise: Create a TypeMap with a Postgres connection.
           *
           *   - What can you get from the map?
           *     - What happens if you ascribe the type `TypeMap[DBConnection]`?
@@ -238,7 +254,7 @@ object `00_TypeMap` extends KyoSpecDefault:
       },
       test("prune") {
 
-        /** Exercise 2: Experiment with `TypeMap#prune`
+        /** Exercise: Experiment with `TypeMap#prune`
           *
           * First prune to just `Redis`. Then prune to just `DBConnection`.
           */
@@ -256,7 +272,7 @@ object `00_TypeMap` extends KyoSpecDefault:
       },
       test("union") {
 
-        /** Exercise 3: Create and combine two TypeMaps
+        /** Exercise: Create and combine two TypeMaps
           */
         lazy val dbs: TypeMap[Postgres] = TypeMap(Postgres())
 

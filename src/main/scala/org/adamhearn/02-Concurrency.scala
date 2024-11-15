@@ -9,7 +9,7 @@ import zio.test.TestResult
 
 /** Async effect allows for the asynchronous execution of computations via a managed thread pool.
   *
-  * The core function, run, forks a new "green thread," also known as a fiber, to handle the given
+  * The core function, `Async.run`, forks a new 'green thread', known as a fiber, to execute the
   * computation.
   */
 object `02_Async` extends KyoSpecDefault {

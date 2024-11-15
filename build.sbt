@@ -6,7 +6,6 @@ lazy val root = project
   .in(file("."))
   .settings(
     name         := "kyo-workshop",
-    version      := "0.1.0-SNAPSHOT",
     scalaVersion := "3.5.2",
     scalacOptions ++= Seq(
       "-encoding",
@@ -16,7 +15,6 @@ lazy val root = project
       "-explain",
       "-deprecation",
       "-new-syntax",
-      "-language:implicitConversions",
       "-Wvalue-discard",
       "-Wnonunit-statement",
       "-Wconf:msg=(discarded.*value|pure.*statement):error",
@@ -37,3 +35,4 @@ lazy val root = project
   )
 
 addCommandAlias("fmt", "scalafmtAll; scalafmtSbt")
+addCommandAlias("format", "scalafmtAll; scalafmtSbt")
