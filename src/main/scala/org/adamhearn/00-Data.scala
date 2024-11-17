@@ -29,8 +29,8 @@ object `00_Maybe` extends KyoSpecDefault:
           */
         extension [A](self: Maybe[Maybe[Maybe[Maybe[A]]]])
           def superFlat: Maybe[A] = self match
-            case Present(Present(Present(Present(value)))) => Present(value)
-            case _                                         => Absent
+            case Present(Present(Present(value))) => value
+            case _                                => Absent
 
         val present = Maybe(Maybe(Maybe(Maybe("real"))))
         val absent  = Maybe(Maybe(Maybe(Absent)))
