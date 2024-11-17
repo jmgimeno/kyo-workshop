@@ -27,14 +27,17 @@ object `00_Maybe` extends KyoSpecDefault:
           * Goal: Extract a deeply nested value using pattern matching Learning: Nested `Maybe`
           * values allocate at maximum 1 object.
           */
-        extension [A](self: Maybe[Maybe[Maybe[Maybe[A]]]]) def superFlat: Maybe[A] = ???
+        extension [A](self: Maybe[Maybe[Maybe[Maybe[A]]]])
+          def superFlat: Maybe[A] = self match
+            case Present(Present(Present(Present(value)))) => Present(value)
+            case _                                         => Absent
 
         val present = Maybe(Maybe(Maybe(Maybe("real"))))
         val absent  = Maybe(Maybe(Maybe(Absent)))
 
         assertTrue(present.superFlat == Present("real")) &&
         assertTrue(absent.superFlat == Absent)
-      } @@ ignore,
+      },
       test("list") {
 
         /** Exercise: List[Maybe[A]] -> Maybe[List[A]]
@@ -46,7 +49,16 @@ object `00_Maybe` extends KyoSpecDefault:
           *
           * Hint: use tail recursion
           */
-        extension [A](list: List[Maybe[A]]) def sequence: Maybe[List[A]] = ???
+        extension [A](list: List[Maybe[A]])
+          def sequence: Maybe[List[A]] =
+            @tailrec
+            def go(list: List[Maybe[A]], acc: List[A]): Maybe[List[A]] = list match
+              case Nil => Present(acc.reverse)
+              case head :: tail =>
+                head match
+                  case Absent         => Absent
+                  case Present(value) => go(tail, value :: acc)
+            go(list, Nil)
 
         val mixed   = List(Present(1), Absent, Present(2))
         val present = List(1, 2, 3, 4, 5).map(Present(_))
@@ -55,7 +67,7 @@ object `00_Maybe` extends KyoSpecDefault:
         assertTrue(mixed.sequence == Absent) &&
         assertTrue(present.sequence == Present(List(1, 2, 3, 4, 5))) &&
         assertTrue(empty.sequence == Present(Nil))
-      } @@ ignore,
+      },
     )
 
 object `00_Result` extends KyoSpecDefault:
